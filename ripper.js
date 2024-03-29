@@ -28,7 +28,7 @@ completion.on('command', ({ reply }) => {
 });
 completion.init();
 
-const args = yargs(hideBin(process.argv))
+yargs(hideBin(process.argv))
   .scriptName(chalk.green("ripper"))
   .usage(chalk.yellow('Usage: $0 <command> [options]'))
   .command('audio', 'download audio', {
@@ -46,7 +46,7 @@ const args = yargs(hideBin(process.argv))
     },
     'o': {
       alias: 'output',
-      describe: 'Output path (Default ripper-downloads)',
+      describe: 'Output path',
       type: 'string',
       default: path.join(__dirname, 'ripper-downloads'),
     }
@@ -68,25 +68,26 @@ const args = yargs(hideBin(process.argv))
     },
     'o': {
       alias: 'output',
-      describe: 'Output path (Default ripper-downloads)',
+      describe: 'Output path',
       type: 'string',
       default: path.join(__dirname, 'ripper-downloads'),
     }
   }, function(argv) {
     downloadVideo(argv.url, argv.output, argv.format).catch(console.error);
   })
+  .command('bpm', 'Find the BPM of a song', {
+    'f': {
+      alias: 'file',
+      describe: 'Audio file',
+      type: 'string',
+      demandOption: true,
+    }
+  }, function(argv) {
+    detectBPM(argv.file).catch(console.error);
+  })
   .completion()
-  .help(chalk.green('h'))
-  .alias('h', 'help')
   .epilog(chalk.yellow('Check the readme at https://github.com/denizensofhell/ripper/blob/main/README.md'))
   .parse()
-
-if(args.downloadType === 'audio') {
-  downloadAudio(args.url, args.output, args.format).catch(console.error);
-} 
-else if (args.downloadType === 'video') {
-  console.log('video');
-}
 
 // * * * * * F U N C T I O N S * * * * *
 async function downloadAudio(ytUrl, outputDirectory, filetype) {
@@ -141,6 +142,10 @@ async function downloadVideo(ytUrl, outputDirectory, filetype) {
     progressBar.stop();
     chalkLog(chalk.greenBright(`'${title}' downloaded`) + chalk.white(` | ${output}`));
   });
+}
+
+async function detectBPM(filePath) {
+  // need to create a fucking package...
 }
 
 function validateYTUrl(ytUrl) {
