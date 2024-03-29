@@ -51,7 +51,7 @@ yargs(hideBin(process.argv))
       default: path.join(__dirname, 'ripper-downloads'),
     }
   }, function(argv) {
-    downloadAudio(argv.url, argv.output, argv.format).catch(console.error);
+    ripAudio(argv.url, argv.output, argv.format).catch(console.error);
   })
   .command('video', 'download video', {
     'f': {
@@ -73,7 +73,7 @@ yargs(hideBin(process.argv))
       default: path.join(__dirname, 'ripper-downloads'),
     }
   }, function(argv) {
-    downloadVideo(argv.url, argv.output, argv.format).catch(console.error);
+    ripVideo(argv.url, argv.output, argv.format).catch(console.error);
   })
   .command('bpm', 'Find the BPM of a song', {
     'f': {
@@ -90,7 +90,7 @@ yargs(hideBin(process.argv))
   .parse()
 
 // * * * * * F U N C T I O N S * * * * *
-async function downloadAudio(ytUrl, outputDirectory, filetype) {
+async function ripAudio(ytUrl, outputDirectory, filetype) {
   if(!validateYTUrl(ytUrl)) return;
 
   chalkLog(chalk.white('Retrieving audio details...'));
@@ -121,7 +121,7 @@ async function downloadAudio(ytUrl, outputDirectory, filetype) {
   });
 }
 
-async function downloadVideo(ytUrl, outputDirectory, filetype) {
+async function ripVideo(ytUrl, outputDirectory, filetype) {
   chalkLog(chalk.white('Retrieving video details...'));
   const info = await ytdl.getInfo(ytUrl);
   chalkLog(chalk.greenBright('Video details retrieved.'));
