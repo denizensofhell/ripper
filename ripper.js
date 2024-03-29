@@ -14,7 +14,6 @@ import ffmpeg from 'fluent-ffmpeg';
 import { promisify } from 'util';
 import { pipeline } from 'stream';
 
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -32,34 +31,54 @@ completion.init();
 const args = yargs(hideBin(process.argv))
   .scriptName(chalk.green("ripper"))
   .usage(chalk.yellow('Usage: $0 <command> [options]'))
-  .option('f', {
-    alias: 'format',
-    describe: 'The file format',
-    choices: ['wav', 'mp3'],
-    demandOption: true,
+  .command('audio', 'download audio', {
+    'f': {
+      alias: 'format',
+      describe: 'The file format',
+      choices: ['wav', 'mp3'],
+      demandOption: true,
+    },
+    'u': {
+      alias: 'url',
+      describe: 'Youtube URL',
+      type: 'string',
+      demandOption: true,
+    },
+    'o': {
+      alias: 'output',
+      describe: 'Output path (Default ripper-downloads)',
+      type: 'string',
+      default: path.join(__dirname, 'ripper-downloads'),
+    }
+  }, function(argv) {
+    downloadAudio(argv.url, argv.output, argv.format).catch(console.error);
   })
-  .option('u', {
-    alias: 'url',
-    describe: 'Youtube URL',
-    type: 'string',
-    demandOption: true,
-  })
-  .option('d', {
-    alias: 'downloadType',
-    describe: 'Download type',
-    choices: ['audio', 'video'],
-    demandOption: true,
-  })
-  .option('o', {
-    alias: 'output',
-    describe: 'Output path (Default ripper-downloads)',
-    type: 'string',
-    default: path.join(__dirname, 'ripper-downloads'),
+  .command('video', 'download video', {
+    'f': {
+      alias: 'format',
+      describe: 'The file format',
+      choices: ['mp4', 'mkv'],
+      demandOption: true,
+    },
+    'u': {
+      alias: 'url',
+      describe: 'Youtube URL',
+      type: 'string',
+      demandOption: true,
+    },
+    'o': {
+      alias: 'output',
+      describe: 'Output path (Default ripper-downloads)',
+      type: 'string',
+      default: path.join(__dirname, 'ripper-downloads'),
+    }
+  }, function(argv) {
+    downloadVideo(argv.url, argv.output, argv.format).catch(console.error);
   })
   .completion()
   .help(chalk.green('h'))
   .alias('h', 'help')
-  .epilog(chalk.yellow('For more information, find our manual at https://github.com/denizensofhell/ripper/blob/main/README.md'))
+  .epilog(chalk.yellow('Check the readme at https://github.com/denizensofhell/ripper/blob/main/README.md'))
   .parse()
 
 if(args.downloadType === 'audio') {
@@ -71,22 +90,23 @@ else if (args.downloadType === 'video') {
 
 // * * * * * F U N C T I O N S * * * * *
 async function downloadAudio(ytUrl, outputDirectory, filetype) {
-  chalkLog(chalk.magenta('Retrieving audio details...'));
+  if(!validateYTUrl(ytUrl)) return;
+
+  chalkLog(chalk.white('Retrieving audio details...'));
   const info = await ytdl.getInfo(ytUrl);
   chalkLog(chalk.greenBright('Audio details retrieved.'));
   const title = info.videoDetails.title.replace(/[\/\\'"\|]/g, "");
+  const output = path.join(outputDirectory, `${title}.${filetype}`);
   const stream = ytdl(ytUrl, { filter: 'audioonly' });
 
   const progressBar = new cliProgress.SingleBar({
-    format: chalk.magenta('{bar}') + '| {percentage}% || {value}/{total} Chunks',
+    format: chalk.blue('{bar}') + '| ' + chalk.yellow('{percentage}%') + ' || {value}/{total} Chunks',
   }, cliProgress.Presets.shades_classic);
   progressBar.start(1, 0);
   stream.on('progress', (chunkLength, downloaded, total) => {
     const percent = downloaded / total;
     progressBar.update(percent);
   });
-
-  const output = path.join(outputDirectory, `${title}.${filetype}`);
 
   await pipelineAsync(
     ffmpeg(stream)
@@ -96,6 +116,37 @@ async function downloadAudio(ytUrl, outputDirectory, filetype) {
     fs.createWriteStream(output)
   ).then(() => {
     progressBar.stop();
-    chalkLog(chalk.greenBright(`'${title}.${filetype}' has been downloaded`));
+    chalkLog(chalk.greenBright(`'${title}' downloaded`) + chalk.white(` | ${output}`));
   });
+}
+
+async function downloadVideo(ytUrl, outputDirectory, filetype) {
+  chalkLog(chalk.white('Retrieving video details...'));
+  const info = await ytdl.getInfo(ytUrl);
+  chalkLog(chalk.greenBright('Video details retrieved.'));
+  const title = info.videoDetails.title.replace(/[\/\\'"\|#]/g, "");
+  const video = ytdl(ytUrl);
+  const output = path.join(outputDirectory, `${title}.mp4`);
+
+  const progressBar = new cliProgress.SingleBar({
+    format: chalk.blue('{bar}') + '| ' + chalk.yellow('{percentage}%') + ' || {value}/{total} Chunks',
+  }, cliProgress.Presets.shades_classic);
+  progressBar.start(1, 0);
+  video.on('progress', (chunkLength, downloaded, total) => {
+    const percent = downloaded / total;
+    progressBar.update(percent);
+  });
+
+  video.pipe(fs.createWriteStream(output)).on('finish', () => {
+    progressBar.stop();
+    chalkLog(chalk.greenBright(`'${title}' downloaded`) + chalk.white(` | ${output}`));
+  });
+}
+
+function validateYTUrl(ytUrl) {
+  if(!ytdl.validateURL(ytUrl)) {
+    chalkLog(chalk.black.bgRed('Invalid Url'));
+    return false;
+  }
+  return true;
 }
