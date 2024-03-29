@@ -145,7 +145,7 @@ async function downloadVideo(ytUrl, outputDirectory, filetype) {
 }
 
 async function detectBPM(filePath) {
-  // need to create a fucking package...
+  // https://www.npmjs.com/package/music-tempo
 }
 
 function validateYTUrl(ytUrl) {

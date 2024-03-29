@@ -1,6 +1,6 @@
 {
   "name": "ripper",
-  "version": "0.0.1",
+  "version": "1.0.1",
   "description": "CLI based YT Converter",
   "type": "module",
   "bin": {
