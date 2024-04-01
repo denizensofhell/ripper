@@ -34,8 +34,6 @@ Options:
 - `-u, --url`: YouTube URL.
 - `-o, --output`: Output path (default: “path/to/install/ripper-downloads”).
 
-### BPM Detection (WIP)
-
 ## Contributing
 
 Feel free to contribute to this project by opening issues or submitting pull requests.

@@ -75,16 +75,6 @@ yargs(hideBin(process.argv))
   }, function(argv) {
     ripVideo(argv.url, argv.output, argv.format).catch(console.error);
   })
-  .command('bpm', 'Find the BPM of a song', {
-    'f': {
-      alias: 'file',
-      describe: 'Audio file',
-      type: 'string',
-      demandOption: true,
-    }
-  }, function(argv) {
-    detectBPM(argv.file).catch(console.error);
-  })
   .completion()
   .epilog(chalk.yellow('Check the readme at https://github.com/denizensofhell/ripper/blob/main/README.md'))
   .parse()
