@@ -134,10 +134,6 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
   });
 }
 
-async function detectBPM(filePath) {
-  // https://www.npmjs.com/package/music-tempo
-}
-
 function validateYTUrl(ytUrl) {
   if(!ytdl.validateURL(ytUrl)) {
     chalkLog(chalk.black.bgRed('Invalid Url'));
