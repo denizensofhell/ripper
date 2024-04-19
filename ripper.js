@@ -13,6 +13,7 @@ import cliProgress from 'cli-progress';
 import ffmpeg from 'fluent-ffmpeg';
 import { promisify } from 'util';
 import { pipeline } from 'stream';
+import unidecode from 'unidecode';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -86,7 +87,7 @@ async function ripAudio(ytUrl, outputDirectory, filetype) {
   chalkLog(chalk.white('Retrieving audio details...'));
   const info = await ytdl.getInfo(ytUrl);
   chalkLog(chalk.greenBright('Audio details retrieved.'));
-  const title = info.videoDetails.title.replace(/[\/\\'"\|]/g, "");
+  const title = unidecode(info.videoDetails.title).replace(/[\/\\'"\|]/g, "");
   const output = path.join(outputDirectory, `${title}.${filetype}`);
   const stream = ytdl(ytUrl, { filter: 'audioonly' });
 
@@ -115,7 +116,7 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
   chalkLog(chalk.white('Retrieving video details...'));
   const info = await ytdl.getInfo(ytUrl);
   chalkLog(chalk.greenBright('Video details retrieved.'));
-  const title = info.videoDetails.title.replace(/[\/\\'"\|#]/g, "");
+  const title = convertToASCII(info.videoDetails.title.replace(/[\/\\'"\|]/g, ""));
   const video = ytdl(ytUrl);
   const output = path.join(outputDirectory, `${title}.mp4`);
 
@@ -140,4 +141,8 @@ function validateYTUrl(ytUrl) {
     return false;
   }
   return true;
+}
+
+function convertToASCII(str) {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }

@@ -26,6 +26,7 @@
     "fluent-ffmpeg": "^2.1.2",
     "omelette": "^0.4.17",
     "realtime-bpm-analyzer": "^4.0.0",
+    "unidecode": "^1.0.1",
     "update-notifier": "^7.0.0",
     "yargs": "^17.7.2",
     "ytdl-core": "^4.11.5"
