@@ -12,7 +12,6 @@ Make sure you have **Node.js** installed on your system. Then, you can install R
 
 - `ripper audio`: Download audio from a YouTube URL.
 - `ripper video`: Download video from a YouTube URL.
-- `ripper bpm`: Find the BPM of a song.
 
 ### Examples
 
