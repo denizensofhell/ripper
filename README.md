@@ -3,8 +3,9 @@
 **Ripper** is a command-line utility for downloading audio and video from yt.
 
 ## Installation
-Make sure you have **Node.js** installed on your system. Then, you can install Ripper globally using npm:
-`npm install -g ripper`
+[**Node.js**](https://nodejs.org/) needs to be installed `node -v` <br>
+In the root of the project run `npm setup` <br>
+Check if ripper installed `ripper -v`
 
 ## Usage
 

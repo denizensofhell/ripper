@@ -11,12 +11,21 @@ import ytdl from 'ytdl-core';
 import chalk from 'chalk';
 import cliProgress from 'cli-progress';
 import ffmpeg from 'fluent-ffmpeg';
+import ffmpegPath from 'ffmpeg-static';
 import { promisify } from 'util';
 import { pipeline } from 'stream';
 import unidecode from 'unidecode';
 
+ffmpeg.setFfmpegPath(ffmpegPath);
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Get version
+const packageJsonPath = path.resolve(__dirname, './package.json');
+const packageJsonData = fs.readFileSync(packageJsonPath);
+const packageJsonObj = JSON.parse(packageJsonData);
+const version = packageJsonObj.version;
 
 const pipelineAsync = promisify(pipeline);
 
@@ -32,6 +41,7 @@ completion.init();
 yargs(hideBin(process.argv))
   .scriptName(chalk.green("ripper"))
   .usage(chalk.yellow('Usage: $0 <command> [options]'))
+  .version('v', 'Show version', chalk.magenta('ripper') + chalk.greenBright(` v${version}`))
   .command('audio', 'download audio', {
     'f': {
       alias: 'format',
@@ -87,7 +97,7 @@ async function ripAudio(ytUrl, outputDirectory, filetype) {
   chalkLog(chalk.white('Retrieving audio details...'));
   const info = await ytdl.getInfo(ytUrl);
   chalkLog(chalk.greenBright('Audio details retrieved.'));
-  const title = unidecode(info.videoDetails.title).replace(/[\/\\'"\|#?]/g, "");
+  const title = sanitizeFileName(info.videoDetails.title);
   const output = path.join(outputDirectory, `${title}.${filetype}`);
   const stream = ytdl(ytUrl, { filter: 'audioonly' });
 
@@ -116,7 +126,7 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
   chalkLog(chalk.white('Retrieving video details...'));
   const info = await ytdl.getInfo(ytUrl);
   chalkLog(chalk.greenBright('Video details retrieved.'));
-  const title = convertToASCII(info.videoDetails.title.replace(/[\/\\'"\|#?]/g, ""));
+  const title = sanitizeFileName(info.videoDetails.title);
   const video = ytdl(ytUrl);
   const output = path.join(outputDirectory, `${title}.mp4`);
 
@@ -145,4 +155,8 @@ function validateYTUrl(ytUrl) {
 
 function convertToASCII(str) {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+function sanitizeFileName(title) {
+  let asciiConvert = convertToASCII(title);
+  return unidecode(asciiConvert.replace(/[\/\\'"\|#?]/g, ""));
 }
