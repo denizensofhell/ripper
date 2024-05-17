@@ -15,6 +15,7 @@ import ffmpegPath from 'ffmpeg-static';
 import { promisify } from 'util';
 import { pipeline } from 'stream';
 import unidecode from 'unidecode';
+import emojiStrip from 'emoji-strip';
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
@@ -157,6 +158,8 @@ function convertToASCII(str) {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 function sanitizeFileName(title) {
-  let asciiConvert = convertToASCII(title);
-  return unidecode(asciiConvert.replace(/[\/\\'"\|#?]/g, ""));
-}
+  let stripedOfEmojies = emojiStrip(title);
+  let asciiConvert = convertToASCII(stripedOfEmojies);
+  let sanitized = unidecode(asciiConvert.replace(/[\/\\'"\|#?*:•]/g, ""));
+  return sanitized.trim();
+};
