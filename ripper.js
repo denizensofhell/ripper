@@ -7,7 +7,8 @@ import { dirname } from 'path';
 import yargs from 'yargs';
 import omelette from 'omelette';
 import { hideBin } from 'yargs/helpers';
-import ytdl from 'ytdl-core';
+// import ytdl from 'ytdl-core';
+import ytdl from "@distube/ytdl-core"; // Patch for ytdl-core form the lovely folks at https://github.com/distubejs/ytdl-core
 import chalk from 'chalk';
 import cliProgress from 'cli-progress';
 import ffmpeg from 'fluent-ffmpeg';
