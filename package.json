@@ -1,6 +1,6 @@
 {
   "name": "ripper",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "CLI based YT Converter",
   "type": "module",
   "bin": {
@@ -28,7 +28,6 @@
     "emoji-strip": "^1.0.1",
     "ffmpeg-static": "^5.2.0",
     "fluent-ffmpeg": "^2.1.2",
-    "omelette": "^0.4.17",
     "realtime-bpm-analyzer": "^4.0.0",
     "unidecode": "^1.0.1",
     "update-notifier": "^7.0.0",
