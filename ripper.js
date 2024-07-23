@@ -12,6 +12,9 @@ import cliProgress from 'cli-progress';
 import unidecode from 'unidecode';
 import emojiStrip from 'emoji-strip';
 import cp from 'child_process';
+import { promisify } from 'util';
+import { pipeline } from 'stream';
+import ffmpeg from 'fluent-ffmpeg';
 import ffmpegStatic from 'ffmpeg-static';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -22,6 +25,9 @@ const packageJsonPath = path.resolve(__dirname, './package.json');
 const packageJsonData = fs.readFileSync(packageJsonPath, 'utf-8');
 const packageJsonObj = JSON.parse(packageJsonData);
 const version = packageJsonObj.version;
+
+// Promisify pipeline
+const promisifiedPipeline = promisify(pipeline);
 
 // Chalk styling 
 const chalkLog = console.log;
@@ -34,7 +40,7 @@ yargs(hideBin(process.argv))
     'f': {
       alias: 'format',
       describe: 'The file format',
-      choices: ['wav', 'mp3'],
+      choices: ['wav', 'mp3', 'aac', 'ogg', 'flac'],
       demandOption: true,
     },
     'u': {
@@ -56,7 +62,7 @@ yargs(hideBin(process.argv))
     'f': {
       alias: 'format',
       describe: 'The file format',
-      choices: ['mp4', 'mkv'],
+      choices: ['mp4', 'mkv', 'mov', 'avi', 'webm', 'flv'],
       demandOption: true,
     },
     'u': {
@@ -94,9 +100,44 @@ function sanitizeFileName(title) {
   return sanitized.trim();
 };
 
+function getAudioCodec(filetype) {
+  switch (filetype) {
+    case 'wav':
+      return 'pcm_s16le';
+    case 'mp3':
+      return 'libmp3lame';
+    case 'aac':
+      return 'aac';
+    case 'ogg':
+      return 'libvorbis';
+    case 'flac':
+      return 'flac';
+    default:
+      throw new Error(`Unsupported audio filetype: ${filetype}`);
+  }
+}
+
+function getVideoCodec(filetype) {
+  switch (filetype) {
+    case 'mp4':
+    case 'mov':
+    case 'mkv':
+    case 'flv':
+      return 'h264';
+    case 'avi':
+      return 'mpeg4';
+    case 'webm':
+      return 'vp9';
+    default:
+      throw new Error(`Unsupported video filetype: ${filetype}`);
+  }
+}
+
+
 // ************************* RIP AUDIO ************************** //
 async function ripAudio(ytUrl, outputDirectory, filetype) {
   try {
+    // Validate URL
     if(!validateYTUrl(ytUrl)) return;
 
     // Get audio details
@@ -121,11 +162,21 @@ async function ripAudio(ytUrl, outputDirectory, filetype) {
       progressBar.update(percent);
     });
   
-    // Download
-    audioStream.pipe(fs.createWriteStream(output)).on('finish', () => {
+    // Convert audio
+    const audioCodec = getAudioCodec(filetype);
+
+    // Download and convert
+    await promisifiedPipeline(
+      ffmpeg(audioStream)
+        .audioCodec(audioCodec)
+        .format(filetype)
+        .outputOptions('-bitexact'),
+      fs.createWriteStream(output)
+    ).then(() => {
       progressBar.stop();
       chalkLog(chalk.greenBright(`'${title}' downloaded`) + chalk.white(` | ${output}`));
     });
+
   } catch (error) {
     chalkLog(chalk.bold.redBright(error.message));
   }
@@ -135,6 +186,7 @@ async function ripAudio(ytUrl, outputDirectory, filetype) {
 // ************************* RIP VIDEO ************************** //
 async function ripVideo(ytUrl, outputDirectory, filetype) {
   try {
+    // Validate URL
     if(!validateYTUrl(ytUrl)) return;
 
     // Get video details
@@ -145,6 +197,12 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
 
     // Set output
     const output = path.join(outputDirectory, `${title}.${filetype}`);
+
+    // Check if file exists
+    if(fs.existsSync(output)) {
+      chalkLog(chalk.bold.redBright(`File already exists: ${output}`));
+      return;
+    }
 
     // Progress Bar
     const progressBar = new cliProgress.SingleBar({
@@ -164,7 +222,8 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
       progressBar.update(percent);
     });
 
-    stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title);
+    stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, filetype);
+    
   } catch (error) {
     chalkLog(chalk.bold.redBright(error.message));
   }
@@ -173,7 +232,9 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
 
 
 // ************************* STITCH WITH FFMPEG ************************** //
-function stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title) {
+function stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, filetype) {
+  // Get video codec
+  const videoCodec = getVideoCodec(filetype);
   // Spawn ffmpeg
   // https://github.com/fent/node-ytdl-core/blob/master/example/ffmpeg.js
   const ffmpegProcess = cp.spawn(ffmpegStatic, [
@@ -188,7 +249,7 @@ function stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title) 
     '-map', '0:a',
     '-map', '1:v',
     // Keep encoding
-    '-c:v', 'copy',
+    '-c:v', videoCodec,
     // Define output file
     output,
   ], {
