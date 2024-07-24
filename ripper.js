@@ -17,6 +17,8 @@ import { pipeline } from 'stream';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegStatic from 'ffmpeg-static';
 
+ffmpeg.setFfmpegPath(ffmpegStatic);
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
