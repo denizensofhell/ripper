@@ -95,6 +95,13 @@ function validateYTUrl(ytUrl) {
   return true;
 }
 
+function ytMusicCheck(ytUrl) {
+  if(ytUrl.includes('music.youtube.com')) {
+    return true;
+  }
+  return false;
+}
+
 function sanitizeFileName(title) {
   let stripedOfEmojies = emojiStrip(title);
   let asciiConvert = stripedOfEmojies.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -141,16 +148,27 @@ async function ripAudio(ytUrl, outputDirectory, filetype) {
   try {
     // Validate URL
     if(!validateYTUrl(ytUrl)) return;
+    
+    // Need to get more info if its from youtube music
+    let ytMusic = ytMusicCheck(ytUrl);
 
     // Get audio details
     chalkLog(chalk.white('Retrieving audio details...'));
     const info = await ytdl.getInfo(ytUrl);
     chalkLog(chalk.greenBright('Audio details retrieved.'));
     const title = sanitizeFileName(info.videoDetails.title);
+    const author = info.videoDetails.author.name.replace(' - Topic', '');
+
+    // fs.writeFileSync(path.join(outputDirectory, 'info.json'), JSON.stringify(info, null, 2));
   
     // Set output
-    const output = path.join(outputDirectory, `${title}.${filetype}`);
-  
+    let output;
+    if(ytMusic) {
+      output = path.join(outputDirectory, `${title} - ${author}.${filetype}`);
+    } else {
+      output = path.join(outputDirectory, `${title}.${filetype}`);
+    }
+
     // Progress Bar
     const progressBar = new cliProgress.SingleBar({
       format: chalk.blue('{bar}') + '| ' + chalk.yellow('{percentage}%') + ' || {value}/{total} Chunks',
@@ -176,7 +194,7 @@ async function ripAudio(ytUrl, outputDirectory, filetype) {
       fs.createWriteStream(output)
     ).then(() => {
       progressBar.stop();
-      chalkLog(chalk.greenBright(`'${title}' downloaded`) + chalk.white(` | ${output}`));
+      chalkLog(chalk.greenBright(`'${title} - ${author}' downloaded`) + chalk.white(` | ${output}`));
     });
 
   } catch (error) {
@@ -191,14 +209,23 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
     // Validate URL
     if(!validateYTUrl(ytUrl)) return;
 
+    // Need to get more info if its from youtube music
+    let ytMusic = ytMusicCheck(ytUrl);
+
     // Get video details
     chalkLog(chalk.white('Retrieving video details...'));
     const info = await ytdl.getInfo(ytUrl);
     chalkLog(chalk.greenBright('Video details retrieved.'));
     const title = sanitizeFileName(info.videoDetails.title);
+    const author = info.videoDetails.author.name.replace(' - Topic', '');
 
     // Set output
-    const output = path.join(outputDirectory, `${title}.${filetype}`);
+    let output;
+    if(ytMusic) {
+      output = path.join(outputDirectory, `${title} - ${author}.${filetype}`);
+    } else {
+      output = path.join(outputDirectory, `${title}.${filetype}`);
+    }
 
     // Check if file exists
     if(fs.existsSync(output)) {
@@ -224,7 +251,7 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
       progressBar.update(percent);
     });
 
-    stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, filetype);
+    stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, author, filetype);
     
   } catch (error) {
     chalkLog(chalk.bold.redBright(error.message));
@@ -234,7 +261,7 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
 
 
 // ************************* STITCH WITH FFMPEG ************************** //
-function stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, filetype) {
+function stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, author, filetype) {
   // Get video codec
   const videoCodec = getVideoCodec(filetype);
   // Spawn ffmpeg
@@ -282,7 +309,7 @@ function stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, 
   // When the ffmpeg process closes, stop the progress bar
   ffmpegProcess.on('close', () => {
     progressBar.stop();
-    chalkLog(chalk.greenBright(`'${title}' downloaded`) + chalk.white(` | ${output}`));
+    chalkLog(chalk.greenBright(`'${title} - ${author}' downloaded`) + chalk.white(` | ${output}`));
   });
 
   // Call the ffmpeg process with the streams
