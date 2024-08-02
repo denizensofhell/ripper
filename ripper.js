@@ -16,6 +16,7 @@ import { promisify } from 'util';
 import { pipeline } from 'stream';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegStatic from 'ffmpeg-static';
+import winston from 'winston';
 
 ffmpeg.setFfmpegPath(ffmpegStatic);
 
@@ -33,6 +34,23 @@ const promisifiedPipeline = promisify(pipeline);
 
 // Chalk styling 
 const chalkLog = console.log;
+
+// Logger
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.printf(({ timestamp, level, message }) => {
+      return `${timestamp} [${level}]: ${message}`;
+    })
+  ),
+  transports: [
+    new winston.transports.File({
+      filename: path.join(__dirname, 'ripper.log'),
+      options: { flags: 'w' },
+    })
+  ]
+});
 
 yargs(hideBin(process.argv))
   .scriptName(chalk.green("ripper"))
@@ -149,18 +167,20 @@ async function ripAudio(ytUrl, outputDirectory, filetype) {
     // Validate URL
     if(!validateYTUrl(ytUrl)) return;
     
+    logger.info(`Started ripping audio only from: ${ytUrl}`);
+
     // Need to get more info if its from youtube music
     let ytMusic = ytMusicCheck(ytUrl);
 
     // Get audio details
+    logger.info(`Getting audio details...`);
     chalkLog(chalk.white('Retrieving audio details...'));
     const info = await ytdl.getInfo(ytUrl);
     chalkLog(chalk.greenBright('Audio details retrieved.'));
+    logger.info(`Audio details retrieved for: ${info.videoDetails.title}`);
     const title = sanitizeFileName(info.videoDetails.title);
     const author = info.videoDetails.author.name.replace(' - Topic', '');
 
-    // fs.writeFileSync(path.join(outputDirectory, 'info.json'), JSON.stringify(info, null, 2));
-  
     // Set output
     let output;
     if(ytMusic) {
@@ -176,13 +196,17 @@ async function ripAudio(ytUrl, outputDirectory, filetype) {
     // Set start of progress bar
     progressBar.start(1, 0);
   
+    logger.info(`Starting the audio download...`);
+
     // Set audio stream
     const audioStream = ytdl(ytUrl, { quality: 'highestaudio' }).on('progress', (chunkLength, downloaded, total) => {
+      logger.info(`Downloading audio: ${downloaded}/${total}`);
       const percent = downloaded / total;
       progressBar.update(percent);
     });
   
     // Convert audio
+    logger.info(`Converting audio...`);
     const audioCodec = getAudioCodec(filetype);
 
     // Download and convert
@@ -193,11 +217,13 @@ async function ripAudio(ytUrl, outputDirectory, filetype) {
         .outputOptions('-bitexact'),
       fs.createWriteStream(output)
     ).then(() => {
+      logger.info(`Audio converted and saved to: ${output}`);
       progressBar.stop();
       chalkLog(chalk.greenBright(`'${title} - ${author}' downloaded`) + chalk.white(` | ${output}`));
     });
 
   } catch (error) {
+    logger.error(`Error with audio: ${error.message}`);
     chalkLog(chalk.bold.redBright(error.message));
   }
 
@@ -209,13 +235,17 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
     // Validate URL
     if(!validateYTUrl(ytUrl)) return;
 
+    logger.info(`Started ripping video from: ${ytUrl}`);
+
     // Need to get more info if its from youtube music
     let ytMusic = ytMusicCheck(ytUrl);
 
     // Get video details
+    logger.info(`Getting video details...`);
     chalkLog(chalk.white('Retrieving video details...'));
     const info = await ytdl.getInfo(ytUrl);
     chalkLog(chalk.greenBright('Video details retrieved.'));
+    logger.info(`Video details retrieved for: ${info.videoDetails.title}`);
     const title = sanitizeFileName(info.videoDetails.title);
     const author = info.videoDetails.author.name.replace(' - Topic', '');
 
@@ -230,6 +260,7 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
     // Check if file exists
     if(fs.existsSync(output)) {
       chalkLog(chalk.bold.redBright(`File already exists: ${output}`));
+      logger.error(`File already exists: ${output}`);
       return;
     }
 
@@ -240,13 +271,17 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
     // Set start of progress bar
     progressBar.start(1, 0);
 
+    logger.info(`Starting the video download...`);
+
     // Set video stream
     const videoStream = ytdl(ytUrl, { quality: 'highestvideo' }).on('progress', (chunkLength, downloaded, total) => {
+      logger.info(`Getting video stream: ${downloaded}/${total}`);
       const percent = (downloaded / total);
       progressBar.update(percent);
     });
     // Set audio stream
     const audioStream = ytdl(ytUrl, { quality: 'highestaudio' }).on('progress', (chunkLength, downloaded, total) => {
+      logger.info(`Getting audio stream: ${downloaded}/${total}`);
       const percent = (downloaded / total);
       progressBar.update(percent);
     });
@@ -254,6 +289,7 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
     stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, author, filetype);
     
   } catch (error) {
+    logger.error(`Error with video: ${error.message}`);
     chalkLog(chalk.bold.redBright(error.message));
   }
   
@@ -263,9 +299,12 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
 // ************************* STITCH WITH FFMPEG ************************** //
 function stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, author, filetype) {
   // Get video codec
+  logger.info(`Getting video codec...`);
   const videoCodec = getVideoCodec(filetype);
+  logger.info(`Video codec: ${videoCodec}`);
   // Spawn ffmpeg
   // https://github.com/fent/node-ytdl-core/blob/master/example/ffmpeg.js
+  logger.info(`Spawning ffmpeg...`);
   const ffmpegProcess = cp.spawn(ffmpegStatic, [
     // Remove ffmpeg's console spamming
     '-loglevel', '8', '-hide_banner',
@@ -290,6 +329,7 @@ function stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, 
       'pipe', 'pipe', 'pipe',
     ],
   });
+  logger.info(`FFmpeg spawned`);
 
   // When the ffmpeg process writes to the progress pipe, update the progress bar
   ffmpegProcess.stdio[3].on('data', chunk => {
@@ -300,6 +340,7 @@ function stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, 
         // Update progress bar based on FFmpeg progress (if available)
         const percent = parseFloat(value);
         if (!isNaN(percent)) {
+          logger.info(`FFmpeg progress: ${percent}`);
           progressBar.update(percent);
         }
       }
@@ -309,10 +350,19 @@ function stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, 
   // When the ffmpeg process closes, stop the progress bar
   ffmpegProcess.on('close', () => {
     progressBar.stop();
+    logger.info(`FFmpeg closed`);
     chalkLog(chalk.greenBright(`'${title} - ${author}' downloaded`) + chalk.white(` | ${output}`));
   });
 
+  // When the ffmpeg process errors, stop the progress bar
+  ffmpegProcess.on('error', (error) => {
+    progressBar.stop();
+    logger.error(`FFmpeg error: ${error.message}`);
+    chalkLog(chalk.bold.redBright(`FFmpeg error: ${error.message}`));
+  });
+
   // Call the ffmpeg process with the streams
+  logger.info(`Calling ffmpeg with streams...`);
   audioStream.pipe(ffmpegProcess.stdio[4]);
   videoStream.pipe(ffmpegProcess.stdio[5]);
 }
