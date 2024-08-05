@@ -160,7 +160,6 @@ function getVideoCodec(filetype) {
   }
 }
 
-
 // ************************* RIP AUDIO ************************** //
 async function ripAudio(ytUrl, outputDirectory, filetype) {
   try {
@@ -226,7 +225,6 @@ async function ripAudio(ytUrl, outputDirectory, filetype) {
     logger.error(`Error with audio: ${error.message}`);
     chalkLog(chalk.bold.redBright(error.message));
   }
-
 }
 
 // ************************* RIP VIDEO ************************** //
@@ -234,6 +232,8 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
   try {
     // Validate URL
     if(!validateYTUrl(ytUrl)) return;
+
+    const startTime = Date.now();
 
     logger.info(`Started ripping video from: ${ytUrl}`);
 
@@ -279,6 +279,7 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
       const percent = (downloaded / total);
       progressBar.update(percent);
     });
+    
     // Set audio stream
     const audioStream = ytdl(ytUrl, { quality: 'highestaudio' }).on('progress', (chunkLength, downloaded, total) => {
       logger.info(`Getting audio stream: ${downloaded}/${total}`);
@@ -286,18 +287,16 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
       progressBar.update(percent);
     });
 
-    stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, author, filetype);
+    stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, author, filetype, startTime);
     
   } catch (error) {
     logger.error(`Error with video: ${error.message}`);
     chalkLog(chalk.bold.redBright(error.message));
   }
-  
 }
 
-
 // ************************* STITCH WITH FFMPEG ************************** //
-function stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, author, filetype) {
+function stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, author, filetype, startTime) {
   // Get video codec
   logger.info(`Getting video codec...`);
   const videoCodec = getVideoCodec(filetype);
@@ -316,7 +315,7 @@ function stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, 
     // Map audio & video from streams
     '-map', '0:a',
     '-map', '1:v',
-    // Keep encoding
+    // Encoding
     '-c:v', videoCodec,
     // Define output file
     output,
@@ -350,8 +349,11 @@ function stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, 
   // When the ffmpeg process closes, stop the progress bar
   ffmpegProcess.on('close', () => {
     progressBar.stop();
-    logger.info(`FFmpeg closed`);
+    const endTime = Date.now();
+    const totalTime = ((endTime - startTime) / 1000).toFixed(2);
+    logger.info(`FFmpeg closed - Total time: ${totalTime}s`);
     chalkLog(chalk.greenBright(`'${title} - ${author}' downloaded`) + chalk.white(` | ${output}`));
+    chalkLog(chalk.white(`Total time: ${totalTime}s`));
   });
 
   // When the ffmpeg process errors, stop the progress bar
