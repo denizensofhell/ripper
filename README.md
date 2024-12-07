@@ -1,6 +1,8 @@
 # Ripper
 
-**Ripper** is a command-line utility for downloading audio and video from yt.
+`Ripper` is a command line tool for downloading audio and video from yt. `
+
+---
 
 ## Installation
 [**Node.js**](https://nodejs.org/) needs to be installed `node -v` <br>

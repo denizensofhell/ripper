@@ -2,11 +2,11 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { fileURLToPath } from 'url';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import ytdl from "@distube/ytdl-core"; // Patch for ytdl-core form the lovely folks at https://github.com/distubejs/ytdl-core
+import ytdl from "@distube/ytdl-core"; // Patch for ytdl-core from the lovely folks at https://github.com/distubejs/ytdl-core
 import chalk from 'chalk';
 import cliProgress from 'cli-progress';
 import unidecode from 'unidecode';
@@ -54,21 +54,15 @@ const logger = winston.createLogger({
 
 yargs(hideBin(process.argv))
   .scriptName(chalk.green("ripper"))
-  .usage(chalk.yellow('Usage: $0 <command> [options]'))
+  .usage(chalk.yellow('Usage: $0 <command> <url> [options]'))
   .version('v', 'Show version', chalk.magenta('ripper') + chalk.greenBright(` v${version}`))
-  .command('audio', 'download audio', {
+  .command('audio <url>', 'Download audio', {
     'f': {
       alias: 'format',
       describe: 'The file format',
       choices: ['wav', 'mp3', 'aac', 'ogg', 'flac'],
       demandOption: true,
     },
-    'u': {
-      alias: 'url',
-      describe: 'Youtube URL',
-      type: 'string',
-      demandOption: true,
-    },
     'o': {
       alias: 'output',
       describe: 'Output path',
@@ -76,21 +70,17 @@ yargs(hideBin(process.argv))
       default: path.join(__dirname, 'ripper-downloads'),
     }
   }, function(argv) {
-    ripAudio(argv.url, argv.output, argv.format).catch(error => {chalkLog(chalk.bold.redBright(error.message))});
+    ripAudio(argv.url, argv.output, argv.format).catch(error => {
+      chalkLog(chalk.bold.redBright(error.message));
+    });
   })
-  .command('video', 'download video', {
+  .command('video <url>', 'Download video', {
     'f': {
       alias: 'format',
       describe: 'The file format',
       choices: ['mp4', 'mkv', 'mov', 'avi', 'webm', 'flv'],
       demandOption: true,
     },
-    'u': {
-      alias: 'url',
-      describe: 'Youtube URL',
-      type: 'string',
-      demandOption: true,
-    },
     'o': {
       alias: 'output',
       describe: 'Output path',
@@ -98,11 +88,14 @@ yargs(hideBin(process.argv))
       default: path.join(__dirname, 'ripper-downloads'),
     }
   }, function(argv) {
-    ripVideo(argv.url, argv.output, argv.format).catch(error => {chalkLog(chalk.bold.redBright(error.message))});
+    ripVideo(argv.url, argv.output, argv.format).catch(error => {
+      chalkLog(chalk.bold.redBright(error.message));
+    });
   })
   .completion()
   .epilog(chalk.yellow('Check the readme at https://github.com/denizensofhell/ripper/blob/main/README.md'))
   .parse();
+
 
 
 function validateYTUrl(ytUrl) {
@@ -124,6 +117,7 @@ function sanitizeFileName(title) {
   let stripedOfEmojies = emojiStrip(title);
   let asciiConvert = stripedOfEmojies.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   let sanitized = unidecode(asciiConvert.replace(/[\/\\'"\|#?*:•]/g, ""));
+  sanitized = sanitized.replace(/["“”]/g, "");
   return sanitized.trim();
 };
 
