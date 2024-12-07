@@ -46,7 +46,7 @@ const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.File({
-      filename: path.join(__dirname, 'ripper.log'),
+      filename: path.join(__dirname, 'ripper-downloads', 'logs', 'ripper.log'),
       options: { flags: 'w' },
     })
   ]
@@ -61,13 +61,13 @@ yargs(hideBin(process.argv))
       alias: 'format',
       describe: 'The file format',
       choices: ['wav', 'mp3', 'aac', 'ogg', 'flac'],
-      demandOption: true,
+      default: 'mp3',
     },
     'o': {
       alias: 'output',
       describe: 'Output path',
       type: 'string',
-      default: path.join(__dirname, 'ripper-downloads'),
+      default: path.join(__dirname, 'ripper-downloads', 'audio'),
     }
   }, function(argv) {
     ripAudio(argv.url, argv.output, argv.format).catch(error => {
@@ -79,13 +79,13 @@ yargs(hideBin(process.argv))
       alias: 'format',
       describe: 'The file format',
       choices: ['mp4', 'mkv', 'mov', 'avi', 'webm', 'flv'],
-      demandOption: true,
+      default: 'mp4',
     },
     'o': {
       alias: 'output',
       describe: 'Output path',
       type: 'string',
-      default: path.join(__dirname, 'ripper-downloads'),
+      default: path.join(__dirname, 'ripper-downloads', 'video'),
     }
   }, function(argv) {
     ripVideo(argv.url, argv.output, argv.format).catch(error => {
@@ -95,8 +95,6 @@ yargs(hideBin(process.argv))
   .completion()
   .epilog(chalk.yellow('Check the readme at https://github.com/denizensofhell/ripper/blob/main/README.md'))
   .parse();
-
-
 
 function validateYTUrl(ytUrl) {
   if(!ytdl.validateURL(ytUrl)) {

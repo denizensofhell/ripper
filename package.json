@@ -1,6 +1,6 @@
 {
   "name": "ripper",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "CLI based YT Converter",
   "type": "module",
   "bin": {
@@ -9,7 +9,7 @@
   "main": "ripper.js",
   "scripts": {
     "test": "exit 0",
-    "setup": "npm install && npm install -g ripper"
+    "setup": "npm install && npm install -g ripper && node setup.js"
   },
   "repository": {
     "type": "git",

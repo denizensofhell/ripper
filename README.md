@@ -1,6 +1,6 @@
 # Ripper
 
-`Ripper` is a command line tool for downloading audio and video from yt. `
+`Ripper` is a command line tool for downloading audio and video from yt.
 
 ---
 
