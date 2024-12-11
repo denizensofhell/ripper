@@ -5,6 +5,7 @@ const directoriesToCreate = [
   path.join(__dirname, 'ripper-downloads'),
   path.join(__dirname, 'ripper-downloads', 'audio'),
   path.join(__dirname, 'ripper-downloads', 'video'),
+  path.join(__dirname, 'ripper-downloads', 'converted'),
   path.join(__dirname, 'ripper-downloads', 'logs'),
 ];
 

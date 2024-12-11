@@ -56,6 +56,7 @@ yargs(hideBin(process.argv))
   .scriptName(chalk.green("ripper"))
   .usage(chalk.yellow('Usage: $0 <command> <url> [options]'))
   .version('v', 'Show version', chalk.magenta('ripper') + chalk.greenBright(` v${version}`))
+  // Rip audio
   .command('audio <url>', 'Download audio', {
     'f': {
       alias: 'format',
@@ -74,6 +75,7 @@ yargs(hideBin(process.argv))
       chalkLog(chalk.bold.redBright(error.message));
     });
   })
+  // Rip video
   .command('video <url>', 'Download video', {
     'f': {
       alias: 'format',
@@ -92,10 +94,29 @@ yargs(hideBin(process.argv))
       chalkLog(chalk.bold.redBright(error.message));
     });
   })
+  // Convert file
+  .command('convert <file>', 'Convert file', {
+    'f': {
+      alias: 'format',
+      describe: 'The file format',
+      choices: ['mp3', 'wav', 'aac', 'ogg', 'flac', 'mp4', 'mkv', 'mov', 'avi', 'webm', 'flv'],
+    },
+    'o': {
+      alias: 'output',
+      describe: 'Output path',
+      type: 'string',
+      default: path.join(__dirname, 'ripper-downloads', 'converted'),
+    }
+  }, function(argv) {
+    convertFile(argv.file, argv.format, argv.output).catch(error => {
+      chalkLog(chalk.bold.redBright(error.message));
+    });
+  })
   .completion()
   .epilog(chalk.yellow('Check the readme at https://github.com/denizensofhell/ripper/blob/main/README.md'))
   .parse();
 
+// Validate YT url
 function validateYTUrl(ytUrl) {
   if(!ytdl.validateURL(ytUrl)) {
     chalkLog(chalk.black.bgRed('Invalid Url'));
@@ -104,6 +125,7 @@ function validateYTUrl(ytUrl) {
   return true;
 }
 
+// Check if YT music url
 function ytMusicCheck(ytUrl) {
   if(ytUrl.includes('music.youtube.com')) {
     return true;
@@ -111,6 +133,7 @@ function ytMusicCheck(ytUrl) {
   return false;
 }
 
+// Sanitize file name
 function sanitizeFileName(title) {
   let stripedOfEmojies = emojiStrip(title);
   let asciiConvert = stripedOfEmojies.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -119,6 +142,7 @@ function sanitizeFileName(title) {
   return sanitized.trim();
 };
 
+// Get audio codec
 function getAudioCodec(filetype) {
   switch (filetype) {
     case 'wav':
@@ -132,10 +156,12 @@ function getAudioCodec(filetype) {
     case 'flac':
       return 'flac';
     default:
-      throw new Error(`Unsupported audio filetype: ${filetype}`);
+      return false;
+      // throw new Error(`Unsupported audio filetype: ${filetype}`);
   }
 }
 
+// Get video codec
 function getVideoCodec(filetype) {
   switch (filetype) {
     case 'mp4':
@@ -148,7 +174,8 @@ function getVideoCodec(filetype) {
     case 'webm':
       return 'vp9';
     default:
-      throw new Error(`Unsupported video filetype: ${filetype}`);
+      return false;
+      // throw new Error(`Unsupported video filetype: ${filetype}`);
   }
 }
 
@@ -199,6 +226,8 @@ async function ripAudio(ytUrl, outputDirectory, filetype) {
     // Convert audio
     logger.info(`Converting audio...`);
     const audioCodec = getAudioCodec(filetype);
+    logger.info(`Audio codec: ${audioCodec}`);
+    if(!audioCodec) throw new Error(`Unsupported video filetype: ${filetype}`);
 
     // Download and convert
     await promisifiedPipeline(
@@ -287,12 +316,68 @@ async function ripVideo(ytUrl, outputDirectory, filetype) {
   }
 }
 
+// ************************* CONVERT FILE ************************** //
+async function convertFile(file, convertToExtension, outputDirectory) {
+  try {
+
+    const inputExtension = path.extname(file);
+    const fileName = path.basename(file, inputExtension);
+    const output = path.join(outputDirectory, `${fileName}.${convertToExtension}`);
+
+    if(fs.existsSync(output)) {
+      chalkLog(chalk.bold.redBright(`File already exists: ${output}`));
+      logger.error(`File already exists: ${output}`);
+      return;
+    }
+
+    if(getAudioCodec(convertToExtension)) {
+      // Get audio codec
+      let audioCodec = getAudioCodec(convertToExtension);
+
+      await promisifiedPipeline(
+        ffmpeg(file)
+          .audioCodec(audioCodec)
+          .format(convertToExtension)
+          .outputOptions('-bitexact'),
+        fs.createWriteStream(output)
+      ).then(() => {
+        logger.info(`Audio converted and saved to: ${output}`);
+        chalkLog(chalk.greenBright(`'${fileName}' converted to ${convertToExtension}`) + chalk.white(` | ${output}`));
+      });
+      
+    } 
+    else if(getVideoCodec(convertToExtension)) {
+      // Get video codec
+      let videoCodec = getVideoCodec(convertToExtension);
+
+      await promisifiedPipeline(
+        ffmpeg(file)
+          .videoCodec(videoCodec)
+          .format(convertToExtension)
+          .outputOptions('-bitexact'),
+        fs.createWriteStream(output)
+      ).then(() => {
+        logger.info(`Video converted and saved to: ${output}`);
+        chalkLog(chalk.greenBright(`'${fileName}' converted to ${convertToExtension}`) + chalk.white(` | ${output}`));
+      });
+      
+    } else {
+      throw new Error(`Unsupported filetype: ${inputExtension}`);
+    }
+    
+  } catch (error) {
+    logger.error(`Error with converting file: ${error.message}`);
+    chalkLog(chalk.bold.redBright(error.message));
+  }
+}
+
 // ************************* STITCH WITH FFMPEG ************************** //
 function stitchWithFFMPEG(audioStream, videoStream, output, progressBar, title, author, filetype, startTime) {
   // Get video codec
   logger.info(`Getting video codec...`);
   const videoCodec = getVideoCodec(filetype);
   logger.info(`Video codec: ${videoCodec}`);
+  if(!videoCodec) throw new Error(`Unsupported video filetype: ${filetype}`);
   // Spawn ffmpeg
   // https://github.com/fent/node-ytdl-core/blob/master/example/ffmpeg.js
   logger.info(`Spawning ffmpeg...`);
