@@ -157,7 +157,6 @@ function getAudioCodec(filetype) {
       return 'flac';
     default:
       return false;
-      // throw new Error(`Unsupported audio filetype: ${filetype}`);
   }
 }
 
@@ -175,7 +174,6 @@ function getVideoCodec(filetype) {
       return 'vp9';
     default:
       return false;
-      // throw new Error(`Unsupported video filetype: ${filetype}`);
   }
 }
 
@@ -324,6 +322,7 @@ async function convertFile(file, convertToExtension, outputDirectory) {
     const fileName = path.basename(file, inputExtension);
     const output = path.join(outputDirectory, `${fileName}.${convertToExtension}`);
 
+    // Check if file exists
     if(fs.existsSync(output)) {
       chalkLog(chalk.bold.redBright(`File already exists: ${output}`));
       logger.error(`File already exists: ${output}`);
@@ -346,7 +345,7 @@ async function convertFile(file, convertToExtension, outputDirectory) {
       });
       
     } 
-    else if(getVideoCodec(convertToExtension)) {
+    else if(getVideoCodec(convertToExtension) && !getAudioCodec(convertToExtension)) {
       // Get video codec
       let videoCodec = getVideoCodec(convertToExtension);
 
